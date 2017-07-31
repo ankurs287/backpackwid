@@ -5,5 +5,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context="com.godfather.ankur.backpackwid.Main2Activity">
-
+    <com.google.android.gms.common.SignInButton
+        android:id="@+id/signin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sign in" ></com.google.android.gms.common.SignInButton>
+    <!--<Button-->
+        <!--android:id="@+id/signin"-->
+        <!--android:layout_width="wrap_content"-->
+        <!--android:layout_height="wrap_content"-->
+        <!--android:text="Sign in" />-->
 </android.support.constraint.ConstraintLayout>

@@ -15,7 +15,9 @@ import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.GmailScopes;
 import com.google.api.services.gmail.model.ListLabelsResponse;
+import com.google.api.services.gmail.model.ListMessagesResponse;
 import com.google.api.services.gmail.model.ListThreadsResponse;
+import com.google.api.services.gmail.model.Message;
 import com.google.api.services.gmail.model.Profile;
 
 //import com.google.api.services.gmail.model.*;
@@ -61,9 +63,10 @@ public class MainActivity extends Activity
     static final int REQUEST_GOOGLE_PLAY_SERVICES = 1002;
     static final int REQUEST_PERMISSION_GET_ACCOUNTS = 1003;
 
-    private static final String BUTTON_TEXT = "Call Gmail API";
+    private static final String BUTTON_TEXT = "Sign Out";
     private static final String PREF_ACCOUNT_NAME = "accountName";
-    private static final String[] SCOPES = { "https://mail.google.com/" };
+    private static final String[] SCOPES = { "https://mail.google.com/", "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.readonly" };
 
     /**
      * Create the main activity.
@@ -72,6 +75,7 @@ public class MainActivity extends Activity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         LinearLayout activityLayout = new LinearLayout(this);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -89,10 +93,15 @@ public class MainActivity extends Activity
         mCallApiButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mCallApiButton.setEnabled(false);
-                mOutputText.setText("");
-                getResultsFromApi();
-                mCallApiButton.setEnabled(true);
+//                mCallApiButton.setEnabled(false);
+//                mOutputText.setText("");
+//                getResultsFromApi();
+//                mCallApiButton.setEnabled(true);
+                mCredential.setSelectedAccountName("");
+                mCredential.setSelectedAccountName(null);
+                mCredential=null;
+                finish();
+//                startActivity(new Intent(MainActivity.this, Main2Activity.class));
             }
         });
         activityLayout.addView(mCallApiButton);
@@ -115,9 +124,17 @@ public class MainActivity extends Activity
         mCredential = GoogleAccountCredential.usingOAuth2(
                 getApplicationContext(), Arrays.asList(SCOPES))
                 .setBackOff(new ExponentialBackOff());
+
+//        getResultsFromApi();
+        chooseAccount();
     }
 
 
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        finish();
+    }
 
     /**
      * Attempt to call the API, after verifying that all the preconditions are
@@ -154,14 +171,18 @@ public class MainActivity extends Activity
                 this, Manifest.permission.GET_ACCOUNTS)) {
             String accountName = getPreferences(Context.MODE_PRIVATE)
                     .getString(PREF_ACCOUNT_NAME, null);
-            if (accountName != null) {
-                mCredential.setSelectedAccountName(accountName);
-                getResultsFromApi();
-            } else {
+//            if (accountName != null) {
+//                mCredential.setSelectedAccountName(accountName);
+////                new MakeRequestTask(mCredential).execute();
+//                getResultsFromApi();
+//            } else {
+            {
                 // Start a dialog from which the user can choose an account
                 startActivityForResult(
                         mCredential.newChooseAccountIntent(),
                         REQUEST_ACCOUNT_PICKER);
+                mCredential.setSelectedAccountName(accountName);
+                getResultsFromApi();
             }
         } else {
             // Request the GET_ACCOUNTS permission via a user dialog
@@ -355,38 +376,36 @@ public class MainActivity extends Activity
          * @throws IOException
          */
         private List<String> getDataFromApi() throws IOException {
-            // Get the labels in the user's account.
-            String user = "me", query="mi";
+            String user = "me", query="from:do-not-reply@usebackpack.com subject:Deadline";
             List<String> labels = new ArrayList<String>();
-//            ListLabelsResponse listResponse =
-//                    mService.users().labels().list(user).execute();
 
-            String q = mService.users().getProfile(user).execute().getEmailAddress();
-//            for (Label label : listResponse.getLabels()) {
-//                labels.add(label.getName());
-//            }
-            labels.add(q);
-            return labels;
-        }
-        public void listThreadsMatchingQuery (Gmail service, String userId,
-                                                     String query) throws IOException {
-            ListThreadsResponse response = service.users().threads().list(userId).setQ(query).execute();
-            List<Thread> threads = new ArrayList<Thread>();
+            ListThreadsResponse response = mService.users().threads().list(user).setQ(query).execute();
+            List<com.google.api.services.gmail.model.Thread> threads = new ArrayList<com.google.api.services.gmail.model.Thread>();
+
             while(response.getThreads() != null) {
                 threads.addAll(response.getThreads());
                 if(response.getNextPageToken() != null) {
-                    String pageToken = response.getNextPageToken()+
-                            ;
-                    response = service.users().threads().list(userId).setQ(query).setPageToken(pageToken).execute();
+                    String pageToken = response.getNextPageToken();
+                    response = mService.users().threads().list(user).setQ(query).setPageToken(pageToken).execute();
                 } else {
                     break;
                 }
             }
 
-            for(Thread thread : threads) {
+            int count=0;
+            for(com.google.api.services.gmail.model.Thread thread : threads) {
+                String snip=thread.getSnippet();
+
+                labels.add(thread.getSnippet()+"\n");
                 System.out.println(thread.toPrettyString());
+
+                count++;
+                if(count>10) break;
             }
+
+            return labels;
         }
+
 
         @Override
         protected void onPreExecute() {
@@ -401,6 +420,7 @@ public class MainActivity extends Activity
                 mOutputText.setText("No results returned.");
             } else {
                 output.add(0, "Data retrieved using the Gmail API:");
+
                 mOutputText.setText(TextUtils.join("\n", output));
             }
         }
